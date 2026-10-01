@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1230">
+<title>Siyad Tech · Admin</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- PIN gate -->
+<div id="pin-gate" class="gate" hidden>
+  <div class="gate-card glass">
+    <div class="gate-logo">S</div>
+    <h1>Siyad Tech Admin</h1>
+    <p id="gate-sub" class="muted"></p>
+    <div id="gate-set">
+      <input id="pin-new" type="password" inputmode="numeric" maxlength="12" placeholder="പുതിയ PIN (കുറഞ്ഞത് 4 അക്കം)" autocomplete="new-password">
+      <input id="pin-confirm" type="password" inputmode="numeric" maxlength="12" placeholder="PIN വീണ്ടും അടിക്കുക" autocomplete="new-password">
+      <button id="pin-set-btn" class="btn primary">PIN സെറ്റ് ചെയ്യുക</button>
+    </div>
+    <div id="gate-enter" hidden>
+      <input id="pin-input" type="password" inputmode="numeric" maxlength="12" placeholder="PIN അടിക്കുക" autocomplete="current-password">
+      <button id="pin-go-btn" class="btn primary">തുറക്കുക</button>
+    </div>
+    <p id="gate-err" class="err" hidden></p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" hidden>
+  <header class="topbar glass">
+    <div class="brand"><span class="brand-s">S</span> Siyad Tech <span class="admin-tag">Admin</span></div>
+    <button id="refresh-btn" class="icon-btn" title="വീണ്ടും ലോഡ്">⟳</button>
+  </header>
+
+  <div id="token-banner" class="banner" hidden>
+    GitHub token ചേർത്തിട്ടില്ല — Settings-ൽ പോയി token ഒട്ടിക്കുക.
+    <button id="token-banner-btn" class="btn small">Settings</button>
+  </div>
+
+  <main id="tab-content"></main>
+
+  <nav class="tabbar glass">
+    <button data-tab="videos" class="tab active"><span class="t-ico">🎬</span><span class="t-lbl">വീഡിയോ</span></button>
+    <button data-tab="tips" class="tab"><span class="t-ico">💡</span><span class="t-lbl">ടിപ്സ്</span></button>
+    <button data-tab="products" class="tab"><span class="t-ico">📱</span><span class="t-lbl">ഫോൺ</span></button>
+    <button data-tab="news" class="tab"><span class="t-ico">📰</span><span class="t-lbl">ന്യൂസ്</span></button>
+    <button data-tab="settings" class="tab"><span class="t-ico">⚙️</span><span class="t-lbl">സെറ്റിങ്സ്</span></button>
+  </nav>
+</div>
+
+<!-- Editor bottom sheet -->
+<div id="sheet-wrap" hidden>
+  <div id="sheet-backdrop"></div>
+  <div id="sheet" class="glass"></div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
