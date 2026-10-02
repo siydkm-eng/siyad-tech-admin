@@ -15,6 +15,7 @@ const DATA_FILES = {
   tips:     'tricks.json',
   products: 'products.json',
   news:     'news.json',
+  newsedits:'news-edits.json',
   blocklist:'blocklist.json'
 };
 const MEDIA_FOLDERS = { videos:'thumbnails/videos/', tips:'thumbnails/tricks/',
@@ -454,21 +455,42 @@ function openProductEditor(p){
 }
 
 /* ---------- News ---------- */
+function newsKey(a){ return a.id || a.source_url || ''; }
+function newsEditsMap(data){
+  const e = (data && data.edits) || {};
+  return (e && typeof e === 'object' && !Array.isArray(e)) ? e : {};
+}
+function effArticle(a, edits){
+  const o = edits[newsKey(a)];
+  if (!o) return a;
+  return Object.assign({}, a, {
+    title: o.title != null ? o.title : a.title,
+    summary: o.summary != null ? o.summary : a.summary,
+    content: o.content != null ? o.content : a.content,
+    thumbnail_url: o.thumbnail_url != null ? o.thumbnail_url : a.thumbnail_url
+  });
+}
 async function renderNews(el){
   if (needToken()) return;
   el.innerHTML = '<div class="loading">ലോഡ് ചെയ്യുന്നു…</div>';
-  const [{ data: news }, bl] = await Promise.all([loadDataFile('news'), loadDataFile('blocklist')]);
+  const [{ data: news }, bl, ed] = await Promise.all([
+    loadDataFile('news'), loadDataFile('blocklist'), loadDataFile('newsedits')]);
   const articles = (news && news.articles) || [];
   const blocked = Array.isArray(bl.data) ? bl.data : [];
+  const edits = newsEditsMap(ed.data);
   el.innerHTML =
     head('ന്യൂസ്', articles.length, null) +
-    articles.map(a =>
-      '<div class="card glass">' +
-      (a.thumbnail_url ? '<img class="thumb" loading="lazy" src="' + esc(a.thumbnail_url) + '" onerror="this.style.opacity=.2">' : '') +
-      '<div class="c-body"><div class="c-title">' + esc(a.title) + '</div>' +
-      '<div class="c-meta">' + esc(a.source_name || '') + '</div>' +
+    articles.map((a, i) => {
+      const eff = effArticle(a, edits);
+      const isEd = !!edits[newsKey(a)];
+      return '<div class="card glass">' +
+      (eff.thumbnail_url ? '<img class="thumb" loading="lazy" src="' + esc(eff.thumbnail_url) + '" onerror="this.style.opacity=.2">' : '') +
+      '<div class="c-body"><div class="c-title">' + esc(eff.title) + '</div>' +
+      '<div class="c-meta">' + esc(a.source_name || '') + (isEd ? ' · <span class="ed-badge">✏️ Edited</span>' : '') + '</div>' +
       (a.source_url ? '<div><span class="src-link">' + esc(a.source_url.slice(0, 60)) + '…</span></div>' : '') +
-      '</div></div>').join('') +
+      '</div>' +
+      '<div class="c-actions"><button class="btn small" data-edit-n="' + i + '">എഡിറ്റ്</button></div></div>';
+    }).join('') +
     '<div class="divider"></div>' +
     '<div class="sec-head"><h2>Blocklist</h2><span class="count-chip">' + blocked.length + '</span></div>' +
     '<p class="muted">ഈ list-ലുള്ള URL ഉള്ള വാർത്തകൾ ഇനി ആപ്പിൽ വരില്ല. (ആപ്പ് server ഈ ഫയൽ വായിക്കും)</p>' +
@@ -481,6 +503,8 @@ async function renderNews(el){
       '<input id="bl-input" placeholder="block ചെയ്യേണ്ട URL / ഭാഗം">' +
       '<button class="btn small primary" id="bl-add" style="flex-shrink:0">＋</button>' +
     '</div>';
+  el.querySelectorAll('[data-edit-n]').forEach(b => b.onclick = () =>
+    openNewsEditor(articles[Number(b.dataset.editN)], edits));
   const save = async (arr, msg) => { await doSave('blocklist', arr, msg, false); render(); };
   $('#bl-add').onclick = async () => {
     const u = $('#bl-input').value.trim();
@@ -492,6 +516,70 @@ async function renderNews(el){
     if (!confirm('ഇത് blocklist-ൽ നിന്ന് നീക്കണോ?')) return;
     blocked.splice(Number(b.dataset.bldel), 1); await save(blocked, 'Blocklist-ൽ നിന്ന് നീക്കി');
   });
+}
+
+function openNewsEditor(a, edits){
+  const key = newsKey(a);
+  const cur = edits[key] || {};
+  const val = f => (cur[f] != null ? cur[f] : (a[f] || ''));
+  const hasEdit = !!edits[key];
+  const hash = (() => { let h = 0; for (let i = 0; i < key.length; i++){ h = (h * 31 + key.charCodeAt(i)) >>> 0; } return h.toString(16); })();
+  openSheet('ന്യൂസ് എഡിറ്റ്', `
+    <label class="f-lbl">Title</label>
+    <input id="f-title" value="${esc(val('title'))}">
+    <label class="f-lbl">Summary</label>
+    <textarea id="f-summary" rows="3">${esc(val('summary'))}</textarea>
+    <label class="f-lbl">Content (മുഴുവൻ വാർത്ത)</label>
+    <textarea id="f-content" rows="10">${esc(val('content'))}</textarea>
+    <label class="f-lbl">Thumbnail</label>
+    <div class="row-flex">
+      <input id="f-thumb" placeholder="image URL" value="${esc(val('thumbnail_url'))}">
+      <label class="btn small" style="flex-shrink:0">📤<input id="f-upload" type="file" accept="image/*" hidden></label>
+    </div>
+    <img id="f-preview" class="preview" src="${esc(val('thumbnail_url'))}" ${val('thumbnail_url') ? '' : 'hidden'}>
+    <p class="muted">എഡിറ്റ് സേവ് ചെയ്താൽ ആപ്പിൽ ഈ version ആണ് കാണുക. Original വാർത്ത refresh-ൽ മാറിയാലും എഡിറ്റ് നിലനിൽക്കും.</p>
+    <div class="sheet-actions">
+      <button class="btn" id="sheet-cancel">റദ്ദാക്കുക</button>
+      ${hasEdit ? '<button class="btn danger" id="sheet-reset">Original ആക്കുക</button>' : ''}
+      <button class="btn primary" id="sheet-save">സേവ്</button>
+    </div>`);
+  $('#sheet-cancel').onclick = closeSheet;
+  $('#f-thumb').oninput = e => { const p = $('#f-preview');
+    p.src = e.target.value; p.hidden = !e.target.value; };
+  $('#f-upload').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      toast('അപ്‌ലോഡ് ചെയ്യുന്നു…');
+      const url = await uploadMedia('news', 'edit-' + hash + '.' + extOf(f.name), f);
+      $('#f-thumb').value = url;
+      const p = $('#f-preview'); p.src = url; p.hidden = false;
+      toast('അപ്‌ലോഡ് OK', 'ok');
+    } catch(err){ toast('അപ്‌ലോഡ് പരാജയം: ' + err.message, 'err'); }
+  };
+  const saveEdits = async (map, msg) => {
+    const data = { edits: map, updated_at: nowIso() };
+    await doSave('newsedits', data, msg);
+  };
+  $('#sheet-save').onclick = async () => {
+    const title = $('#f-title').value.trim();
+    if (!title){ toast('Title നിർബന്ധം', 'err'); return; }
+    const map = Object.assign({}, edits);
+    map[key] = {
+      title,
+      summary: $('#f-summary').value,
+      content: $('#f-content').value,
+      thumbnail_url: $('#f-thumb').value.trim(),
+      edited_at: nowIso()
+    };
+    await saveEdits(map, 'ന്യൂസ് എഡിറ്റ് സേവ് ചെയ്തു');
+  };
+  const resetBtn = $('#sheet-reset');
+  if (resetBtn) resetBtn.onclick = async () => {
+    if (!confirm('എഡിറ്റ് നീക്കി original വാർത്തയിലേക്ക് മാറ്റണോ?')) return;
+    const map = Object.assign({}, edits);
+    delete map[key];
+    await saveEdits(map, 'Original ആക്കി');
+  };
 }
 
 /* ---------- Settings ---------- */

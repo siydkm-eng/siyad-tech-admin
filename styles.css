@@ -94,6 +94,7 @@ body{
 .sec-head h2{margin:0;font-size:1.15rem}
 .count-chip{font-size:.75rem;color:var(--muted);background:rgba(255,255,255,.07);
   padding:3px 10px;border-radius:99px;border:1px solid var(--glass-brd)}
+.ed-badge{color:#7dd3fc;font-size:.72rem;font-weight:600}
 
 .card{padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
 .card img.thumb{width:64px;height:64px;object-fit:cover;border-radius:12px;flex-shrink:0;background:#111a3d}
