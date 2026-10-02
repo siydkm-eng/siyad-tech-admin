@@ -483,13 +483,19 @@ async function renderNews(el){
     articles.map((a, i) => {
       const eff = effArticle(a, edits);
       const isEd = !!edits[newsKey(a)];
-      return '<div class="card glass">' +
+      const aUrl = a.source_url || a.id || '';
+      const isBl = !!aUrl && blocked.some(u => u && aUrl.includes(u));
+      return '<div class="card glass' + (isBl ? ' blocked' : '') + '">' +
       (eff.thumbnail_url ? '<img class="thumb" loading="lazy" src="' + esc(eff.thumbnail_url) + '" onerror="this.style.opacity=.2">' : '') +
       '<div class="c-body"><div class="c-title">' + esc(eff.title) + '</div>' +
-      '<div class="c-meta">' + esc(a.source_name || '') + (isEd ? ' · <span class="ed-badge">✏️ Edited</span>' : '') + '</div>' +
+      '<div class="c-meta">' + esc(a.source_name || '') + (isEd ? ' · <span class="ed-badge">✏️ Edited</span>' : '') + (isBl ? ' · <span class="bl-badge">🚫 Deleted</span>' : '') + '</div>' +
       (a.source_url ? '<div><span class="src-link">' + esc(a.source_url.slice(0, 60)) + '…</span></div>' : '') +
       '</div>' +
-      '<div class="c-actions"><button class="btn small" data-edit-n="' + i + '">എഡിറ്റ്</button></div></div>';
+      '<div class="c-actions"><button class="btn small" data-edit-n="' + i + '">എഡിറ്റ്</button>' +
+      (isBl
+        ? '<button class="btn small" data-undel-n="' + i + '">↩ Restore</button>'
+        : '<button class="btn small danger" data-del-n="' + i + '">🗑 Delete</button>') +
+      '</div></div>';
     }).join('') +
     '<div class="divider"></div>' +
     '<div class="sec-head"><h2>Blocklist</h2><span class="count-chip">' + blocked.length + '</span></div>' +
@@ -506,6 +512,21 @@ async function renderNews(el){
   el.querySelectorAll('[data-edit-n]').forEach(b => b.onclick = () =>
     openNewsEditor(articles[Number(b.dataset.editN)], edits));
   const save = async (arr, msg) => { await doSave('blocklist', arr, msg, false); render(); };
+  el.querySelectorAll('[data-del-n]').forEach(b => b.onclick = async () => {
+    const a = articles[Number(b.dataset.delN)];
+    const u = a.source_url || a.id || '';
+    if (!u) return;
+    if (!confirm('ഈ വാർത്ത delete ചെയ്യണോ?\nആപ്പിൽ നിന്ന് മാഞ്ഞുപോകും. (Restore ചെയ്യാം)')) return;
+    if (!blocked.includes(u)) blocked.push(u);
+    await save(blocked, 'വാർത്ത delete ചെയ്തു');
+  });
+  el.querySelectorAll('[data-undel-n]').forEach(b => b.onclick = async () => {
+    const a = articles[Number(b.dataset.undelN)];
+    const u = a.source_url || a.id || '';
+    const idx = blocked.indexOf(u);
+    if (idx < 0){ toast('താഴെയുള്ള Blocklist-ൽ നിന്ന് നീക്കൂ', 'err'); return; }
+    blocked.splice(idx, 1); await save(blocked, 'വാർത്ത restore ചെയ്തു');
+  });
   $('#bl-add').onclick = async () => {
     const u = $('#bl-input').value.trim();
     if (!u) return;
